@@ -1,5 +1,5 @@
 {
-  "name": "claude-agent-orchestrator",
+  "name": "agent--claude-smith",
   "version": "1.0.0",
   "description": "Multi-agent orchestration system using Claude Agent SDK with subagent spawning, state persistence, and self-correction",
   "type": "module",

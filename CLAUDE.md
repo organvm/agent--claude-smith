@@ -1,4 +1,4 @@
-# Claude Agent Orchestrator
+# Claude Smith (agent--claude-smith)
 
 ## Project Overview
 
@@ -69,7 +69,7 @@ npm start
 ### Programmatic
 
 ```typescript
-import { createOrchestrator } from 'claude-agent-orchestrator';
+import { createOrchestrator } from 'agent--claude-smith';
 
 const orchestrator = await createOrchestrator({
   registerBuiltins: true,
@@ -85,16 +85,16 @@ const result = await orchestrator.spawnAgent({
 
 ```bash
 # Run a code review
-claude-agent -a code-reviewer -p "Review src/auth/"
+claude-smith -a code-reviewer -p "Review src/auth/"
 
 # Run agents in parallel
-claude-agent --parallel code-reviewer,security-auditor -p "Analyze the codebase"
+claude-smith --parallel code-reviewer,security-auditor -p "Analyze the codebase"
 
 # List available agents
-claude-agent --list
+claude-smith --list
 
 # Resume a session
-claude-agent --resume <session-id>
+claude-smith --resume <session-id>
 ```
 
 ## Configuration
