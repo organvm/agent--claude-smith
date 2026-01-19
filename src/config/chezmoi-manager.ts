@@ -13,6 +13,7 @@ import type {
   ConfigLoadError,
 } from './types.js';
 import { RawAgentConfigSchema } from './types.js';
+import { safeJsonParse, ChezmoiDataSchema } from '../utils/safe-json.js';
 
 const execAsync = promisify(exec);
 
@@ -71,7 +72,13 @@ export class ChezmoiManager {
 
     try {
       const { stdout } = await execAsync('chezmoi data --format json');
-      this.chezmoiData = JSON.parse(stdout) as ChezmoiData;
+      // Use safe JSON parsing with schema validation
+      const result = safeJsonParse(stdout, ChezmoiDataSchema);
+      if (!result.success) {
+        console.error('[ChezmoiManager] Invalid chezmoi data format:', result.error.message);
+        return null;
+      }
+      this.chezmoiData = result.data;
       return this.chezmoiData;
     } catch (error) {
       console.error('[ChezmoiManager] Failed to get chezmoi data:', error);

@@ -7,21 +7,30 @@ import { RetryConfigSchema, SecretReferenceSchema } from '../agents/types.js';
 
 /**
  * chezmoi data structure returned by `chezmoi data`
+ *
+ * Many fields are optional because chezmoi output varies by operating system.
+ * For example, `gid`, `uid`, and `group` are not available on Windows.
  */
 export interface ChezmoiData {
   chezmoi: {
+    // Required fields (always present)
     arch: string;
-    fqdnHostname: string;
-    gid: string;
-    group: string;
     homeDir: string;
     hostname: string;
-    kernel: {
+    os: string;
+    username: string;
+    // Optional fields (vary by OS)
+    fqdnHostname?: string;
+    gid?: string;
+    group?: string;
+    uid?: string;
+    sourceDir?: string;
+    workingTree?: string;
+    kernel?: {
       osrelease: string;
       ostype: string;
       version: string;
     };
-    os: string;
     osRelease?: {
       id: string;
       idLike?: string[];
@@ -29,16 +38,14 @@ export interface ChezmoiData {
       prettyName: string;
       versionId?: string;
     };
-    sourceDir: string;
-    uid: string;
-    username: string;
-    version: {
-      builtBy: string;
-      commit: string;
-      date: string;
-      version: string;
+    version?: {
+      builtBy?: string;
+      commit?: string;
+      date?: string;
+      version?: string;
     };
-    workingTree: string;
+    // Allow additional chezmoi fields
+    [key: string]: unknown;
   };
   // Custom data from chezmoi config
   [key: string]: unknown;

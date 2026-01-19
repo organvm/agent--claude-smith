@@ -8,7 +8,7 @@ import type {
 } from '../agents/types.js';
 import { DEFAULT_ORCHESTRATOR_CONFIG } from '../agents/types.js';
 import { AgentRegistry, getAgentRegistry } from './agent-registry.js';
-import { SessionManager, getSessionManager } from './session-manager.js';
+import { SessionManager, getSessionManager, type OrchestratorShutdownResult } from './session-manager.js';
 import { SecretResolver, getSecretResolver } from '../secrets/secret-resolver.js';
 import { SelfCorrectionHooks, getSelfCorrectionHooks, AuditLogEntry } from '../hooks/self-correction.js';
 import type { ChezmoiManager } from '../config/chezmoi-manager.js';
@@ -195,7 +195,14 @@ export class Orchestrator {
   }
 
   /**
-   * Spawn multiple agents in parallel
+   * Spawn multiple agents in parallel.
+   *
+   * Results are returned in the same order as the input requests,
+   * regardless of completion order.
+   *
+   * @param requests - Array of agent spawn requests
+   * @param options - Parallel execution options
+   * @returns Array of results in the same order as input requests
    */
   async spawnParallel(
     requests: AgentSpawnRequest[],
@@ -204,17 +211,22 @@ export class Orchestrator {
     await this.ensureInitialized();
 
     const maxConcurrent = options.maxConcurrent ?? this.config.maxConcurrentAgents;
-    const results: AgentResult[] = [];
+    // Pre-allocate result array to maintain request order
+    const results: (AgentResult | undefined)[] = new Array(requests.length);
     const pending: Promise<void>[] = [];
-    let requestIndex = 0;
+    let nextRequestIndex = 0;
 
     const executeNext = async (): Promise<void> => {
-      if (requestIndex >= requests.length) return;
+      // Capture index before incrementing (for ordering)
+      const currentIndex = nextRequestIndex++;
+      if (currentIndex >= requests.length) return;
 
-      const request = requests[requestIndex++];
+      const request = requests[currentIndex];
       const result = await this.spawnAgent(request);
-      results.push(result);
+      // Store result at its original index to maintain order
+      results[currentIndex] = result;
 
+      // Continue with next request if available
       await executeNext();
     };
 
@@ -226,7 +238,8 @@ export class Orchestrator {
 
     await Promise.all(pending);
 
-    return results;
+    // Filter out any undefined entries (shouldn't happen, but type-safe)
+    return results.filter((r): r is AgentResult => r !== undefined);
   }
 
   /**
@@ -294,18 +307,43 @@ export class Orchestrator {
   }
 
   /**
-   * Shutdown the orchestrator
+   * Shutdown the orchestrator.
+   *
+   * Cancels all active agents and saves all sessions. Errors are collected
+   * rather than aborting on first failure.
+   *
+   * @returns OrchestratorShutdownResult with success status and any errors encountered
    */
-  async shutdown(): Promise<void> {
-    // Cancel all active agents
+  async shutdown(): Promise<OrchestratorShutdownResult> {
+    const cancellationErrors: Array<{ sessionId: string; error: Error }> = [];
+    let agentsCancelled = 0;
+
+    // Cancel all active agents, collecting errors
     for (const [sessionId, controller] of this.activeAgents) {
-      controller.abort();
-      await this.sessionManager.pauseSession(sessionId);
+      try {
+        controller.abort();
+        await this.sessionManager.pauseSession(sessionId);
+        agentsCancelled++;
+      } catch (error) {
+        const err = error instanceof Error ? error : new Error(String(error));
+        cancellationErrors.push({ sessionId, error: err });
+        console.error(`[Orchestrator] Failed to pause session ${sessionId}:`, err.message);
+      }
     }
     this.activeAgents.clear();
 
-    await this.sessionManager.shutdown();
-    console.log('[Orchestrator] Shutdown complete');
+    // Shutdown session manager (continues on errors)
+    const sessionResult = await this.sessionManager.shutdown();
+
+    const success = cancellationErrors.length === 0 && sessionResult.success;
+    console.log(
+      `[Orchestrator] Shutdown complete: ${agentsCancelled} agents cancelled, ` +
+      `${sessionResult.sessionsSaved} sessions saved` +
+      (cancellationErrors.length > 0 ? `, ${cancellationErrors.length} cancellation errors` : '') +
+      (sessionResult.errors.length > 0 ? `, ${sessionResult.errors.length} save errors` : '')
+    );
+
+    return { success, agentsCancelled, sessionResult, cancellationErrors };
   }
 
   // ============================================================================

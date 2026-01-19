@@ -4,11 +4,28 @@ import type {
   CheckpointData,
   ToolCallRecord,
 } from '../agents/types.js';
-import { SessionStore, getSessionStore } from '../persistence/session-store.js';
+import { SessionStore, getSessionStore, type ShutdownResult } from '../persistence/session-store.js';
 
 // ============================================================================
 // Session Manager
 // ============================================================================
+
+// Re-export ShutdownResult for consumers
+export type { ShutdownResult };
+
+/**
+ * Orchestrator shutdown result with additional context
+ */
+export interface OrchestratorShutdownResult {
+  /** Whether shutdown completed successfully */
+  success: boolean;
+  /** Number of active agents cancelled */
+  agentsCancelled: number;
+  /** Session store shutdown result */
+  sessionResult: ShutdownResult;
+  /** Errors from agent cancellation */
+  cancellationErrors: Array<{ sessionId: string; error: Error }>;
+}
 
 interface SessionManagerConfig {
   /** Session storage path */
@@ -246,10 +263,12 @@ export class SessionManager {
   }
 
   /**
-   * Shutdown the session manager
+   * Shutdown the session manager.
+   *
+   * @returns ShutdownResult with success status and any errors encountered
    */
-  async shutdown(): Promise<void> {
-    await this.store.shutdown();
+  async shutdown(): Promise<ShutdownResult> {
+    return this.store.shutdown();
   }
 
   /**

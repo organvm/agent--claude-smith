@@ -158,6 +158,140 @@ export class AgentRegistry {
   }
 
   /**
+   * Check if spawning childAgentId from parentAgentId would create a cycle.
+   *
+   * This uses DFS to detect if there's a path from childAgentId back to
+   * parentAgentId through the allowedSubagents graph.
+   *
+   * @param parentAgentId - The agent that wants to spawn
+   * @param childAgentId - The agent to be spawned
+   * @returns true if spawning would create a cycle, false otherwise
+   */
+  wouldCreateCycle(parentAgentId: string, childAgentId: string): boolean {
+    // Direct self-spawn is always a cycle
+    if (parentAgentId === childAgentId) {
+      return true;
+    }
+
+    // Check if childAgentId can eventually spawn parentAgentId
+    const visited = new Set<string>();
+    return this.canReach(childAgentId, parentAgentId, visited);
+  }
+
+  /**
+   * DFS helper to check if there's a path from startId to targetId.
+   */
+  private canReach(startId: string, targetId: string, visited: Set<string>): boolean {
+    if (startId === targetId) {
+      return true;
+    }
+
+    if (visited.has(startId)) {
+      return false;
+    }
+
+    visited.add(startId);
+
+    const subagents = this.getAllowedSubagents(startId);
+    for (const subagentId of subagents) {
+      if (this.canReach(subagentId, targetId, visited)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Detect all cycles in the agent subagent graph.
+   *
+   * @returns Array of cycles, where each cycle is an array of agent IDs
+   */
+  detectAllCycles(): string[][] {
+    const cycles: string[][] = [];
+    const allVisited = new Set<string>();
+
+    for (const agent of this.getAll()) {
+      if (!agent.canSpawnSubagents) continue;
+
+      const path: string[] = [];
+      const pathSet = new Set<string>();
+
+      this.findCyclesDfs(agent.id, path, pathSet, allVisited, cycles);
+    }
+
+    return cycles;
+  }
+
+  /**
+   * DFS helper for cycle detection.
+   */
+  private findCyclesDfs(
+    agentId: string,
+    path: string[],
+    pathSet: Set<string>,
+    allVisited: Set<string>,
+    cycles: string[][]
+  ): void {
+    // If we've already visited this in the current path, we found a cycle
+    if (pathSet.has(agentId)) {
+      // Extract the cycle from the path
+      const cycleStartIndex = path.indexOf(agentId);
+      if (cycleStartIndex >= 0) {
+        const cycle = [...path.slice(cycleStartIndex), agentId];
+        // Only add unique cycles
+        const cycleKey = cycle.sort().join(',');
+        if (!cycles.some(c => c.sort().join(',') === cycleKey)) {
+          cycles.push(cycle);
+        }
+      }
+      return;
+    }
+
+    // If we've fully explored this node before, skip
+    if (allVisited.has(agentId)) {
+      return;
+    }
+
+    path.push(agentId);
+    pathSet.add(agentId);
+
+    const subagents = this.getAllowedSubagents(agentId);
+    for (const subagentId of subagents) {
+      this.findCyclesDfs(subagentId, path, pathSet, allVisited, cycles);
+    }
+
+    path.pop();
+    pathSet.delete(agentId);
+    allVisited.add(agentId);
+  }
+
+  /**
+   * Validate spawn with cycle detection.
+   *
+   * @param parentAgentId - The agent that wants to spawn
+   * @param childAgentId - The agent to be spawned
+   * @returns Object with allowed status and reason if not allowed
+   */
+  validateSpawn(parentAgentId: string, childAgentId: string): { allowed: boolean; reason?: string } {
+    if (!this.canSpawn(parentAgentId, childAgentId)) {
+      return {
+        allowed: false,
+        reason: `Agent '${parentAgentId}' is not allowed to spawn '${childAgentId}'`,
+      };
+    }
+
+    if (this.wouldCreateCycle(parentAgentId, childAgentId)) {
+      return {
+        allowed: false,
+        reason: `Spawning '${childAgentId}' from '${parentAgentId}' would create a circular dependency`,
+      };
+    }
+
+    return { allowed: true };
+  }
+
+  /**
    * Convert raw config to ExtendedAgentDefinition
    */
   private configToDefinition(config: RawAgentConfig): ExtendedAgentDefinition {

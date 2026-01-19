@@ -8,6 +8,11 @@ import type {
   ToolCallRecord,
   ExtendedAgentDefinition,
 } from '../agents/types.js';
+import {
+  validateCommand,
+  validateWritePath,
+} from '../security/command-validator.js';
+import { CircularBuffer, ExpiringMap } from '../utils/circular-buffer.js';
 
 // ============================================================================
 // Self-Correction Hook System
@@ -31,50 +36,36 @@ export interface AuditLogEntry {
 }
 
 /**
- * Dangerous operation patterns to block
- */
-const DANGEROUS_PATTERNS = {
-  bash: {
-    commands: [
-      /\brm\s+-rf\s+[\/~]/,  // rm -rf with root or home paths
-      /\bsudo\s/,            // sudo commands
-      /\bmkfs\b/,            // filesystem formatting
-      /\bdd\s+.*of=\/dev\//,  // disk operations
-      /\b:\(\)\{.*\}.*;:\b/, // fork bomb
-      /\bcurl.*\|\s*(?:ba)?sh/,  // curl pipe to shell
-      /\bwget.*\|\s*(?:ba)?sh/,  // wget pipe to shell
-    ],
-    paths: [
-      /^\/$/,               // root
-      /^\/etc\//,           // system config
-      /^\/var\/log\//,      // system logs
-      /^\/boot\//,          // boot partition
-    ],
-  },
-  write: {
-    paths: [
-      /^\/etc\//,
-      /^\/boot\//,
-      /^\/sys\//,
-      /^\/proc\//,
-      /\.ssh\/authorized_keys$/,
-      /\.bashrc$/,
-      /\.zshrc$/,
-      /\.profile$/,
-    ],
-  },
-};
-
-/**
  * Self-correction hooks for agent safety and recovery
  */
 export class SelfCorrectionHooks {
-  private readonly auditLog: AuditLogEntry[] = [];
-  private readonly maxAuditLogSize: number = 1000;
+  /** Circular buffer for audit log entries - O(1) insertion, bounded size */
+  private readonly auditLog: CircularBuffer<AuditLogEntry>;
+  private readonly maxAuditLogSize: number;
   private readonly onAuditEntry?: (entry: AuditLogEntry) => void;
-  private failureTracker: Map<string, number> = new Map();
 
-  constructor(options: { onAuditEntry?: (entry: AuditLogEntry) => void } = {}) {
+  /**
+   * Expiring map for failure tracking - entries expire after TTL.
+   * This prevents unbounded memory growth across sessions.
+   * TTL: 5 minutes, Max size: 1000 entries
+   */
+  private readonly failureTracker: ExpiringMap<string, number>;
+
+  /** TTL for failure tracker entries in milliseconds (5 minutes) */
+  private static readonly FAILURE_TRACKER_TTL_MS = 5 * 60 * 1000;
+  /** Maximum number of entries in failure tracker */
+  private static readonly FAILURE_TRACKER_MAX_SIZE = 1000;
+
+  constructor(options: {
+    onAuditEntry?: (entry: AuditLogEntry) => void;
+    maxAuditLogSize?: number;
+  } = {}) {
+    this.maxAuditLogSize = options.maxAuditLogSize ?? 1000;
+    this.auditLog = new CircularBuffer<AuditLogEntry>(this.maxAuditLogSize);
+    this.failureTracker = new ExpiringMap<string, number>(
+      SelfCorrectionHooks.FAILURE_TRACKER_TTL_MS,
+      SelfCorrectionHooks.FAILURE_TRACKER_MAX_SIZE
+    );
     this.onAuditEntry = options.onAuditEntry;
   }
 
@@ -116,7 +107,7 @@ export class SelfCorrectionHooks {
   }
 
   /**
-   * Validate Bash tool usage
+   * Validate Bash tool usage using comprehensive command validator
    */
   private validateBashTool(
     input: PreToolUseHookInput,
@@ -129,24 +120,23 @@ export class SelfCorrectionHooks {
       return { allow: true };
     }
 
-    // Check against dangerous command patterns
-    for (const pattern of DANGEROUS_PATTERNS.bash.commands) {
-      if (pattern.test(command)) {
-        this.logAudit({
-          ...this.baseAuditEntry(context, toolName),
-          event: 'block',
-          input: toolInput,
-          decision: `Blocked dangerous command pattern: ${pattern}`,
-        });
+    // Use the comprehensive command validator
+    const validationResult = validateCommand(command);
+    if (!validationResult.allowed) {
+      this.logAudit({
+        ...this.baseAuditEntry(context, toolName),
+        event: 'block',
+        input: toolInput,
+        decision: validationResult.reason ?? 'Blocked by security validator',
+      });
 
-        return {
-          allow: false,
-          blockReason: `Potentially dangerous command detected. Pattern: ${pattern}`,
-        };
-      }
+      return {
+        allow: false,
+        blockReason: validationResult.reason ?? 'Potentially dangerous command detected',
+      };
     }
 
-    // Check blocked commands from config
+    // Check blocked commands from config (additional restrictions)
     if (restrictions?.blockedCommands) {
       for (const blocked of restrictions.blockedCommands) {
         if (command.includes(blocked)) {
@@ -176,7 +166,7 @@ export class SelfCorrectionHooks {
   }
 
   /**
-   * Validate Write/Edit tool usage
+   * Validate Write/Edit tool usage using comprehensive path validator
    */
   private validateWriteTool(
     input: PreToolUseHookInput,
@@ -189,24 +179,23 @@ export class SelfCorrectionHooks {
       return { allow: true };
     }
 
-    // Check against dangerous path patterns
-    for (const pattern of DANGEROUS_PATTERNS.write.paths) {
-      if (pattern.test(filePath)) {
-        this.logAudit({
-          ...this.baseAuditEntry(context, toolName),
-          event: 'block',
-          input: toolInput,
-          decision: `Blocked dangerous path pattern: ${pattern}`,
-        });
+    // Use the comprehensive path validator
+    const validationResult = validateWritePath(filePath);
+    if (!validationResult.allowed) {
+      this.logAudit({
+        ...this.baseAuditEntry(context, toolName),
+        event: 'block',
+        input: toolInput,
+        decision: validationResult.reason ?? 'Blocked by security validator',
+      });
 
-        return {
-          allow: false,
-          blockReason: `Writing to '${filePath}' is not allowed for security reasons`,
-        };
-      }
+      return {
+        allow: false,
+        blockReason: validationResult.reason ?? `Writing to '${filePath}' is not allowed for security reasons`,
+      };
     }
 
-    // Check allowed paths if configured
+    // Check allowed paths if configured (additional restrictions)
     if (restrictions?.allowedPaths && restrictions.allowedPaths.length > 0) {
       const isAllowed = restrictions.allowedPaths.some(allowed =>
         filePath.startsWith(allowed)
@@ -331,10 +320,17 @@ export class SelfCorrectionHooks {
   }
 
   /**
-   * Get audit log entries
+   * Get audit log entries (oldest to newest)
    */
   getAuditLog(): readonly AuditLogEntry[] {
-    return this.auditLog;
+    return this.auditLog.toArray();
+  }
+
+  /**
+   * Get the last N audit log entries (newest)
+   */
+  getRecentAuditLog(count: number): AuditLogEntry[] {
+    return this.auditLog.lastN(count);
   }
 
   /**
@@ -348,14 +344,24 @@ export class SelfCorrectionHooks {
    * Clear audit log
    */
   clearAuditLog(): void {
-    this.auditLog.length = 0;
+    this.auditLog.clear();
   }
 
   /**
-   * Reset failure tracking
+   * Reset failure tracking (clears all failure counts)
    */
   resetFailureTracking(): void {
     this.failureTracker.clear();
+  }
+
+  /**
+   * Get current audit log size and capacity
+   */
+  getAuditLogStats(): { size: number; capacity: number } {
+    return {
+      size: this.auditLog.length,
+      capacity: this.auditLog.capacity,
+    };
   }
 
   // ============================================================================
@@ -373,11 +379,8 @@ export class SelfCorrectionHooks {
   }
 
   private logAudit(entry: AuditLogEntry): void {
-    // Add to internal log with size limit
+    // CircularBuffer handles size limits automatically - O(1) insertion
     this.auditLog.push(entry);
-    if (this.auditLog.length > this.maxAuditLogSize) {
-      this.auditLog.shift();
-    }
 
     // Call external handler if provided
     if (this.onAuditEntry) {
