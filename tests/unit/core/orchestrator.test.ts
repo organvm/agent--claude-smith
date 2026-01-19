@@ -8,23 +8,25 @@ import { AgentRegistry, resetAgentRegistry } from '../../../src/core/agent-regis
 import { resetSessionStore } from '../../../src/persistence/session-store.js';
 import type { ExtendedAgentDefinition, AgentSpawnRequest } from '../../../src/agents/types.js';
 
-// Mock the Anthropic SDK
-vi.mock('@anthropic-ai/sdk', () => ({
-  default: vi.fn().mockImplementation(() => ({
-    messages: {
-      create: vi.fn().mockResolvedValue({
-        id: 'msg_test123',
-        type: 'message',
-        role: 'assistant',
-        content: [{ type: 'text', text: 'Mock response from Claude' }],
-        model: 'claude-sonnet-4-20250514',
-        stop_reason: 'end_turn',
-        stop_sequence: null,
-        usage: { input_tokens: 100, output_tokens: 50 },
-      }),
+// Mock the Anthropic SDK using a class (required for vitest 4.x constructor mocking)
+vi.mock('@anthropic-ai/sdk', () => {
+  return {
+    default: class MockAnthropic {
+      messages = {
+        create: vi.fn().mockResolvedValue({
+          id: 'msg_test123',
+          type: 'message',
+          role: 'assistant',
+          content: [{ type: 'text', text: 'Mock response from Claude' }],
+          model: 'claude-sonnet-4-20250514',
+          stop_reason: 'end_turn',
+          stop_sequence: null,
+          usage: { input_tokens: 100, output_tokens: 50 },
+        }),
+      };
     },
-  })),
-}));
+  };
+});
 
 function createTestAgent(id: string, overrides: Partial<ExtendedAgentDefinition> = {}): ExtendedAgentDefinition {
   return {
