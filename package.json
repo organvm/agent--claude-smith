@@ -28,7 +28,7 @@
     "@1password/sdk": "^0.1.0",
     "@anthropic-ai/sdk": "^0.39.0",
     "@iarna/toml": "^2.2.5",
-    "zod": "^3.24.0"
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
