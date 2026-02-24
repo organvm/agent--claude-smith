@@ -132,12 +132,12 @@ Vitest globals are enabled (`describe`, `it`, `expect`, `vi` available without i
 <!-- ORGANVM:AUTO:START -->
 ## System Context (auto-generated — do not edit)
 
-**Organ:** ORGAN-IV (Orchestration) | **Tier:** standard | **Status:** LOCAL
-**Org:** `organvm-iv-taxis` | **Repo:** `agent--claude-smith`
+**Organ:** ORGAN-IV (Orchestration) | **Tier:** standard | **Status:** CANDIDATE
+**Org:** `unknown` | **Repo:** `agent--claude-smith`
 
 ### Edges
-- **Produces** → `a-i--skills`: Orchestration config and governance rules
-- **Consumes** ← `META-ORGANVM`: Registry data for orchestration
+- **Produces** → `unknown`: unknown
+- **Consumes** ← `META-ORGANVM`: unknown
 
 ### Siblings in Orchestration
 `orchestration-start-here`, `petasum-super-petasum`, `universal-node-network`, `.github`, `agentic-titan`, `a-i--skills`
@@ -145,5 +145,5 @@ Vitest globals are enabled (`describe`, `it`, `expect`, `vi` available without i
 ### Governance
 - *Standard ORGANVM governance applies*
 
-*Last synced: 2026-02-24T01:01:15Z*
+*Last synced: 2026-02-24T12:41:28Z*
 <!-- ORGANVM:AUTO:END -->
