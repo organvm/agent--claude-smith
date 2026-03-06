@@ -136,6 +136,16 @@ export class SelfCorrectionHooks {
       };
     }
 
+    // Emit warning-level audit entry when rm is used (even if allowed)
+    if (/\brm\b/.test(command)) {
+      this.logAudit({
+        ...this.baseAuditEntry(context, toolName),
+        event: 'pre_tool',
+        input: toolInput,
+        decision: 'warning: rm detected — consider using trash or mv <file> .archive/ instead',
+      });
+    }
+
     // Check blocked commands from config (additional restrictions)
     if (restrictions?.blockedCommands) {
       for (const blocked of restrictions.blockedCommands) {

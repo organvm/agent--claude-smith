@@ -11,6 +11,7 @@ export interface ValidationResult {
   allowed: boolean;
   reason?: string;
   severity?: 'info' | 'warning' | 'critical';
+  suggestion?: string;
 }
 
 /**
@@ -25,6 +26,13 @@ const DANGEROUS_PATTERNS = {
     /\bshred\b/i,
     /\bwipe\b/i,
     /\bsrm\b/i, // secure rm
+  ],
+
+  // Bare file deletion of source/prototype files (with or without flags)
+  bareFileDeletion: [
+    /\brm\s+(-[a-z]+\s+)*[^\|;&]*\.(html?|jsx|tsx|vue|svelte|ipynb|proto|graphql|sql)\b/i,
+    /\brm\s+(-[a-z]+\s+)*[^\|;&]*prototype/i,
+    /\brm\s+(-[a-z]+\s+)*[^\|;&]*draft/i,
   ],
 
   // Privilege escalation
@@ -200,7 +208,7 @@ const SAFE_COMMAND_PREFIXES = [
 
   // Misc safe
   'echo', 'printf', 'date', 'env', 'export',
-  'mkdir', 'touch', 'cp', 'mv', 'ln',
+  'mkdir', 'touch', 'cp', 'mv', 'ln', 'trash',
   'basename', 'dirname', 'realpath', 'readlink',
   'true', 'false', 'test', '[',
   'xargs', 'parallel',
@@ -304,11 +312,15 @@ export function validateCommand(command: string): ValidationResult {
   for (const [category, patterns] of Object.entries(DANGEROUS_PATTERNS)) {
     for (const pattern of patterns) {
       if (pattern.test(normalized)) {
-        return {
+        const result: ValidationResult = {
           allowed: false,
           reason: `Blocked: ${category} pattern detected`,
           severity: 'critical',
         };
+        if (category === 'bareFileDeletion') {
+          result.suggestion = 'Use trash or mv <file> .archive/ instead of rm';
+        }
+        return result;
       }
     }
   }
@@ -334,11 +346,15 @@ export function validateCommand(command: string): ValidationResult {
     for (const [category, patterns] of Object.entries(DANGEROUS_PATTERNS)) {
       for (const pattern of patterns) {
         if (pattern.test(partNormalized)) {
-          return {
+          const pipeResult: ValidationResult = {
             allowed: false,
             reason: `Blocked in pipeline: ${category} pattern detected`,
             severity: 'critical',
           };
+          if (category === 'bareFileDeletion') {
+            pipeResult.suggestion = 'Use trash or mv <file> .archive/ instead of rm';
+          }
+          return pipeResult;
         }
       }
     }
