@@ -1,0 +1,8 @@
+schema_version: '1.0'
+repo: agent--claude-smith
+organ: IV
+display_name: Multi-agent orchestration using Claude Agent SDK with subagent spawning,
+  state persistence, and self-correction
+delivery:
+- platform: web_app
+  status: not_started
