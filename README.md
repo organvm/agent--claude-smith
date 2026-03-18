@@ -560,3 +560,11 @@ npm run test:security    # Security-focused tests (run after modifying command-v
 **[@4444j99](https://github.com/4444J99)** — ORGAN-IV maintainer
 
 Part of the [organvm](https://github.com/meta-organvm) eight-organ creative-institutional system.
+
+<!-- SYSTEM-NAV-START -->
+
+---
+
+<sub>[Portfolio](https://4444j99.github.io/portfolio/) · [System Directory](https://4444j99.github.io/portfolio/directory/) · [ORGAN IV · Taxis](https://organvm-iv-taxis.github.io/) · Part of the <a href="https://4444j99.github.io/portfolio/directory/">ORGANVM eight-organ system</a></sub>
+
+<!-- SYSTEM-NAV-END -->
