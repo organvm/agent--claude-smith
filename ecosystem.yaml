@@ -1,8 +1,23 @@
 schema_version: '1.0'
 repo: agent--claude-smith
 organ: IV
-display_name: Multi-agent orchestration using Claude Agent SDK with subagent spawning,
-  state persistence, and self-correction
+display_name: "Multi-agent orchestration using Claude Agent SDK with subagent spawning and self-correction"
+
 delivery:
-- platform: web_app
+- platform: npm_package
+  status: in_progress
+  priority: critical
+  notes: "TypeScript package for Claude Agent SDK orchestration"
+  next_action: "Complete agent spawning and state persistence APIs"
+- platform: cli_tool
+  status: planned
+  priority: high
+  notes: "CLI for agent configuration and orchestration"
+  next_action: "Design CLI interface for agent management"
+
+content:
+- platform: docs_site
   status: not_started
+  priority: high
+  notes: "Agent SDK usage, orchestration patterns, self-correction strategies"
+  next_action: "Write getting-started guide with agent SDK examples"
