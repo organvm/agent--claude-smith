@@ -1,0 +1,25 @@
+schema_version: '1.0'
+repo: agent--claude-smith
+organ: ORGAN-IV
+mirrors:
+  technical:
+  - project: microsoft/TypeScript
+    platform: github
+    relevance: 'JS/TS dependency: typescript'
+    engagement:
+    - watch
+    tags:
+    - auto-discovered
+    - js-dep
+  - project: vitest-dev/vitest
+    platform: github
+    relevance: 'JS/TS dependency: vitest'
+    engagement:
+    - watch
+    tags:
+    - auto-discovered
+    - js-dep
+  parallel: []
+  kinship: []
+ledger: ~/.organvm/network/ledger.jsonl
+last_scanned: '2026-03-20T11:55:26.337443+00:00'
