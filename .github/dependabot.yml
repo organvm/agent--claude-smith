@@ -3,10 +3,16 @@ updates:
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    groups:
+      all-deps:
+        patterns: ["*"]
+    open-pull-requests-limit: 3
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    groups:
+      all-actions:
+        patterns: ["*"]
+    open-pull-requests-limit: 1
