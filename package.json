@@ -25,16 +25,16 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@1password/sdk": "^0.1.0",
-    "@anthropic-ai/sdk": "^0.74.0",
+    "@1password/sdk": "^0.4.0",
+    "@anthropic-ai/sdk": "^0.104.1",
     "@iarna/toml": "^2.2.5",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.2.3",
-    "@vitest/coverage-v8": "^4.0.18",
-    "tsx": "^4.19.0",
-    "typescript": "^5.7.0",
+    "@types/node": "^25.9.3",
+    "@vitest/coverage-v8": "^4.1.8",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
     "vitest": "^4.0.18"
   },
   "engines": {
