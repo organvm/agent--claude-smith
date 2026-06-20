@@ -26,13 +26,13 @@
   "license": "MIT",
   "dependencies": {
     "@1password/sdk": "^0.4.0",
-    "@anthropic-ai/sdk": "^0.104.1",
+    "@anthropic-ai/sdk": "^0.105.0",
     "@iarna/toml": "^2.2.5",
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@types/node": "^25.9.3",
-    "@vitest/coverage-v8": "^4.1.8",
+    "@types/node": "^26.0.0",
+    "@vitest/coverage-v8": "^4.1.9",
     "tsx": "^4.22.4",
     "typescript": "^6.0.3",
     "vitest": "^4.0.18"
