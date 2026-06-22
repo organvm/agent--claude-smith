@@ -1,0 +1,13 @@
+{
+  "description": "Ranked tier of organvm repositories with discovered latent value. Repos here have a written value thesis (see each repo's DISCOVERY.md) and are eligible for build-out.",
+  "repos": [
+    {
+      "repo": "organvm/agent--claude-smith",
+      "organ": "ORGAN-IV",
+      "discovered": "2026-06-22",
+      "thesis": "Working 6,281-LOC / 320-test multi-agent orchestrator whose highest latent value is a self-contained, bypass-resistant agent execution guardrail (validateCommand / validateWritePath / validateSessionId) reusable across the estate's agent-spawning repos.",
+      "primary_asset": "src/security/command-validator.ts",
+      "first_task": "Extract the security layer into a standalone importable guardrail package/export (@organvm/agent-guardrails) so sibling agentic repos can import validateCommand instead of re-implementing shell-safety regexes."
+    }
+  ]
+}
